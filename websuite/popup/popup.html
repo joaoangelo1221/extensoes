@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WebSuite</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="shell-header">
+        <div>
+          <div class="eyebrow">WebSuite</div>
+          <h1 id="app-title">WebSuite</h1>
+        </div>
+        <label class="language-switch">
+          <span id="language-label">Idioma</span>
+          <select id="language-select">
+            <option value="pt-BR">PT</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+          </select>
+        </label>
+      </header>
+
+      <nav class="tabs" aria-label="WebSuite modules">
+        <button class="tab active" data-tab="workspace" id="tab-workspace">Workspace</button>
+        <button class="tab" data-tab="automation" id="tab-automation">Automation</button>
+        <button class="tab" data-tab="privacy" id="tab-privacy">Privacy</button>
+      </nav>
+
+      <main class="panel-shell">
+        <iframe id="module-frame" title="WebSuite module" src="../modules/workspace/ui/workspace-panel.html"></iframe>
+      </main>
+    </div>
+    <script type="module" src="popup.js"></script>
+  </body>
+  </html>

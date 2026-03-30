@@ -1,0 +1,10 @@
+{
+  "extensionName": { "message": "WebSuite – All-in-One Productivity Extension" },
+  "extensionDescription": { "message": "Workspace, automation and privacy in a single modular extension." },
+  "commandPrevTab": { "message": "Go to the tab on the left" },
+  "commandNextTab": { "message": "Go to the tab on the right" },
+  "contextAddCurrentSite": { "message": "Add current site to Workspace" },
+  "addSite": { "message": "Add current site" },
+  "moreAccessed": { "message": "Most visited" },
+  "trash": { "message": "Trash" }
+}
