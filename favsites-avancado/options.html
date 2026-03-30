@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="settings">Configurações</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <h1 data-i18n="settings">Configurações</h1>
+    <div class="option-row">
+      <label for="theme-select" data-i18n="theme">Tema</label>
+      <select id="theme-select">
+        <option value="system" data-i18n="themeSystem">Sistema</option>
+        <option value="light" data-i18n="themeLight">Claro</option>
+        <option value="dark" data-i18n="themeDark">Escuro</option>
+      </select>
+    </div>
+    <div class="option-row">
+      <label for="merge-dup" data-i18n="mergeDuplicatesLabel">Mesclar duplicados</label>
+      <input type="checkbox" id="merge-dup">
+    </div>
+    <div class="option-row">
+      <button id="export-btn" class="secondary-btn" data-i18n="export">Exportar</button>
+      <button id="import-btn" class="secondary-btn" data-i18n="import">Importar</button>
+      <input type="file" id="import-file" accept="application/json" style="display:none">
+    </div>
+    <div id="options-message" class="message"></div>
+  </div>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

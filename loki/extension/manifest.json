@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Loki",
+  "description": "Automação de atualização de páginas, manutenção de dados e otimização de abas.",
+  "version": "1.0.0",
+  "permissions": [
+    "tabs",
+    "storage",
+    "alarms",
+    "scripting",
+    "browsingData"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Loki",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html"
+}
