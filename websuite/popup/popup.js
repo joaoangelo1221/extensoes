@@ -1,4 +1,5 @@
-import { getLanguage, setLanguage, translate } from '../core/i18n.js';
+import { getLanguage, setLanguage } from '../core/i18n.js';
+import { applyDocumentTranslations } from '../core/i18n-dom.js';
 
 const tabs = {
   workspace: '../modules/workspace/ui/workspace-panel.html',
@@ -14,14 +15,6 @@ function setActiveTab(tabName) {
   frame.src = tabs[tabName];
 }
 
-function applyShellTranslations(language) {
-  document.getElementById('app-title').textContent = translate(language, 'appTitle');
-  document.getElementById('language-label').textContent = translate(language, 'language');
-  document.getElementById('tab-workspace').textContent = translate(language, 'workspace');
-  document.getElementById('tab-automation').textContent = translate(language, 'automation');
-  document.getElementById('tab-privacy').textContent = translate(language, 'privacy');
-}
-
 document.querySelectorAll('.tab').forEach((tab) => {
   tab.addEventListener('click', () => setActiveTab(tab.dataset.tab));
 });
@@ -29,10 +22,11 @@ document.querySelectorAll('.tab').forEach((tab) => {
 languageSelect.addEventListener('change', async () => {
   const language = languageSelect.value;
   await setLanguage(language);
-  applyShellTranslations(language);
+  await applyDocumentTranslations(document);
+  frame.src = tabs[document.querySelector('.tab.active')?.dataset.tab || 'workspace'];
 });
 
 const language = await getLanguage();
 languageSelect.value = language;
-applyShellTranslations(language);
+await applyDocumentTranslations(document);
 setActiveTab('workspace');

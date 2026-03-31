@@ -1,10 +1,10 @@
 {
-  "extensionName": { "message": "WebSuite – All-in-One Productivity Extension" },
+  "extensionName": { "message": "WebSuite - Extensión de Productividad Todo en Uno" },
   "extensionDescription": { "message": "Workspace, automatización y privacidad en una sola extensión modular." },
   "commandPrevTab": { "message": "Ir a la pestaña de la izquierda" },
   "commandNextTab": { "message": "Ir a la pestaña de la derecha" },
-  "contextAddCurrentSite": { "message": "Agregar sitio actual a Workspace" },
-  "addSite": { "message": "Agregar sitio actual" },
+  "contextAddCurrentSite": { "message": "Agregar sitio al Workspace" },
+  "addSite": { "message": "Agregar sitio de la pestaña" },
   "moreAccessed": { "message": "Más visitados" },
   "trash": { "message": "Papelera" }
 }

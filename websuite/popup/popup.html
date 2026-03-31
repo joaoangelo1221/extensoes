@@ -11,10 +11,10 @@
       <header class="shell-header">
         <div>
           <div class="eyebrow">WebSuite</div>
-          <h1 id="app-title">WebSuite</h1>
+          <h1 id="app-title" data-i18n="appTitle">WebSuite</h1>
         </div>
         <label class="language-switch">
-          <span id="language-label">Idioma</span>
+          <span id="language-label" data-i18n="language">Idioma</span>
           <select id="language-select">
             <option value="pt-BR">PT</option>
             <option value="en">EN</option>
@@ -24,15 +24,16 @@
       </header>
 
       <nav class="tabs" aria-label="WebSuite modules">
-        <button class="tab active" data-tab="workspace" id="tab-workspace">Workspace</button>
-        <button class="tab" data-tab="automation" id="tab-automation">Automation</button>
-        <button class="tab" data-tab="privacy" id="tab-privacy">Privacy</button>
+        <button class="tab active" data-tab="workspace" id="tab-workspace" data-i18n="workspace">Workspace</button>
+        <button class="tab" data-tab="automation" id="tab-automation" data-i18n="automation">Automation</button>
+        <button class="tab" data-tab="privacy" id="tab-privacy" data-i18n="privacy">Privacy</button>
       </nav>
 
       <main class="panel-shell">
         <iframe id="module-frame" title="WebSuite module" src="../modules/workspace/ui/workspace-panel.html"></iframe>
       </main>
     </div>
+    <script src="../core/i18n-dom-global.js"></script>
     <script type="module" src="popup.js"></script>
   </body>
   </html>

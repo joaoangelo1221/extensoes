@@ -285,7 +285,7 @@
         x: parseInt(fab.style.left || "0", 10),
         y: parseInt(fab.style.top || "0", 10),
       };
-      await safeRuntimeSend({ type: "SET_FLOATING_LOCK_POSITION", position: tabState.floatingLockPosition });
+      await safeRuntimeSend({ type: "PRIVACY/SET_FLOATING_LOCK_POSITION", payload: { position: tabState.floatingLockPosition } });
       fab.dataset.dragged = moved ? "true" : "false";
       window.setTimeout(() => delete fab.dataset.dragged, 120);
     };
@@ -337,12 +337,12 @@
       event.stopPropagation();
       tabState.floatingLockEnabled = false;
       renderFabVisibility();
-      await safeRuntimeSend({ type: "SET_FLOATING_LOCK_ENABLED", enabled: false });
+      await safeRuntimeSend({ type: "PRIVACY/SET_FLOATING_LOCK_ENABLED", payload: { enabled: false } });
     });
 
     fabAction.addEventListener("click", async (event) => {
       event.stopPropagation();
-      await safeRuntimeSend({ type: "LOCK_CURRENT", tabId: tabState.tabId });
+      await safeRuntimeSend({ type: "PRIVACY/LOCK_CURRENT", payload: { tabId: tabState.tabId } });
     });
 
     enableFabDrag();
@@ -605,6 +605,11 @@
           return;
         case "PRIVACY/SETTINGS_UPDATED":
           applySettings(msg.payload || msg);
+          sendResponse?.({ ok: true });
+          return;
+        case "PRIVACY_TOGGLE":
+          if (document.documentElement.classList.contains("qh-locked-blur")) clearLockVisuals();
+          else await applyLockVisuals(tabState.blurAmount);
           sendResponse?.({ ok: true });
           return;
         default:

@@ -176,6 +176,18 @@ export async function initializePrivacyModule() {
       await syncTabState(currentTabId, nextState);
       return { ok: true };
     },
+    'PRIVACY/TOGGLE': async (_payload, sender) => {
+      const state = await getState();
+      if (!state.passwordHash) return { ok: false, error: 'Defina uma senha antes.' };
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const currentTabId = tab?.id ?? sender?.tab?.id;
+      if (!currentTabId) return { ok: false, error: 'Nenhuma aba ativa encontrada.' };
+      const lockedTabs = { ...state.lockedTabs, [normalizeTabId(currentTabId)]: true };
+      const nextState = { ...state, lockedTabs };
+      await setState({ lockedTabs });
+      await syncTabState(currentTabId, nextState);
+      return { ok: true };
+    },
     'PRIVACY/UNLOCK_CURRENT': async ({ tabId, password }, sender) => {
       const state = await getState();
       if (!state.passwordHash) return { ok: false, error: 'Sem senha definida.' };

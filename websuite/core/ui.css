@@ -1,0 +1,13 @@
+.container {
+  padding: 16px;
+  font-family: system-ui, sans-serif;
+}
+
+.section {
+  margin-bottom: 16px;
+}
+
+.button {
+  width: 100%;
+  padding: 8px;
+}

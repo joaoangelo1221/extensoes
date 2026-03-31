@@ -1,10 +1,15 @@
+import { getLanguage, translate } from '../../../core/i18n.js';
+
+const language = await getLanguage();
+const t = (key, fallback = '') => translate(language, key) || fallback || key;
+
 function sendToActiveTab(message) {
   return new Promise((resolve) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || !tabs[0]) return resolve({ ok: false, error: 'Nenhuma aba ativa encontrada.' });
+      if (!tabs || !tabs[0]) return resolve({ ok: false, error: t('noActiveTab', 'Nenhuma aba ativa encontrada.') });
       chrome.tabs.sendMessage(tabs[0].id, message, (response) => {
         if (chrome.runtime.lastError) {
-          resolve({ ok: false, error: 'Não foi possível comunicar com a aba atual.' });
+          resolve({ ok: false, error: t('privacyCurrentTabUnavailable', 'Não foi possível comunicar com a aba atual.') });
           return;
         }
         resolve(response ?? { ok: false });
@@ -57,17 +62,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const current = (pwdCurrent.value || '').trim();
     const next = (pwdNew.value || '').trim();
     if (!next) {
-      alert('Informe a nova senha.');
+      alert(t('privacyEnterNewPassword', 'Informe a nova senha.'));
       return;
     }
 
     const res = await chrome.runtime.sendMessage({ type: 'PRIVACY/CHANGE_PASSWORD', payload: { current, next } });
     if (!res?.ok) {
-      alert(res?.error || 'Falha ao salvar senha.');
+      alert(res?.error || t('privacySavePasswordFailed', 'Falha ao salvar senha.'));
       return;
     }
 
-    alert('Senha salva.');
+    alert(t('privacyPasswordSaved', 'Senha salva.'));
     pwdCurrent.value = '';
     pwdNew.value = '';
   });
@@ -94,8 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
   btnLockTab.addEventListener('click', async () => {
     const tabId = await getActiveTabId();
     const res = await chrome.runtime.sendMessage({ type: 'PRIVACY/LOCK_CURRENT', payload: { tabId } });
-    if (!res?.ok) alert(res?.error || 'Falha ao bloquear esta aba.');
-    else await sendToActiveTab({ type: 'PRIVACY/APPLY_LOCK_VISUALS', payload: { amount: Number(blur.value || 6) } });
+    if (!res?.ok) alert(res?.error || t('privacyLockCurrentFailed', 'Falha ao bloquear esta aba.'));
   });
 
   btnUnlockTabToggle.addEventListener('click', () => {
@@ -107,14 +111,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabId = await getActiveTabId();
     const password = pwdUnlockOne.value || '';
     const res = await chrome.runtime.sendMessage({ type: 'PRIVACY/UNLOCK_CURRENT', payload: { tabId, password } });
-    if (!res?.ok) alert(res?.error || 'Falha ao desbloquear esta aba.');
+    if (!res?.ok) alert(res?.error || t('privacyUnlockCurrentFailed', 'Falha ao desbloquear esta aba.'));
+    else pwdUnlockOne.value = '';
   });
 
   btnLockAll.addEventListener('click', async () => {
-    if (!confirm('Deseja bloquear todas as abas agora?')) return;
+    if (!confirm(t('privacyConfirmLockAll', 'Deseja bloquear todas as abas agora?'))) return;
     const res = await chrome.runtime.sendMessage({ type: 'PRIVACY/LOCK_ALL' });
-    if (!res?.ok) alert(res?.error || 'Falha ao bloquear todas as abas.');
-    else await sendToActiveTab({ type: 'PRIVACY/APPLY_LOCK_VISUALS', payload: { amount: Number(blur.value || 6) } });
+    if (!res?.ok) alert(res?.error || t('privacyLockAllFailed', 'Falha ao bloquear todas as abas.'));
   });
 
   btnUnlockAllToggle.addEventListener('click', () => {
@@ -123,16 +127,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   btnUnlockAll.addEventListener('click', async () => {
-    if (!confirm('Deseja desbloquear todas as abas agora?')) return;
+    if (!confirm(t('privacyConfirmUnlockAll', 'Deseja desbloquear todas as abas agora?'))) return;
     const password = pwdUnlockAll.value || '';
     const res = await chrome.runtime.sendMessage({ type: 'PRIVACY/UNLOCK_ALL', payload: { password } });
-    if (!res?.ok) alert(res?.error || 'Falha ao desbloquear todas as abas.');
+    if (!res?.ok) alert(res?.error || t('privacyUnlockAllFailed', 'Falha ao desbloquear todas as abas.'));
+    else pwdUnlockAll.value = '';
   });
 
   btnHighlight.addEventListener('click', async () => {
     const color = colorInput.value || '#fff59d';
     const res = await sendToActiveTab({ type: 'PRIVACY/HIGHLIGHT_SELECTION', payload: { color } });
-    if (!res?.ok) alert(res?.error || 'Selecione um texto antes de realçar.');
+    if (!res?.ok) alert(res?.error || t('privacyHighlightSelectionRequired', 'Selecione um texto antes de realçar.'));
   });
 
   btnClear.addEventListener('click', async () => {
@@ -141,16 +146,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnClearOne.addEventListener('click', async () => {
     const res = await sendToActiveTab({ type: 'PRIVACY/ENABLE_HIGHLIGHT_REMOVE_MODE' });
-    if (!res?.ok) alert(res?.error || 'Não foi possível ativar a limpeza individual.');
+    if (!res?.ok) alert(res?.error || t('privacySingleClearFailed', 'Não foi possível ativar a limpeza individual.'));
   });
 
   btnAddNote.addEventListener('click', async () => {
     const res = await sendToActiveTab({ type: 'PRIVACY/CREATE_NOTE' });
-    if (!res?.ok) alert(res?.error || 'Não foi possível adicionar a nota.');
+    if (!res?.ok) alert(res?.error || t('privacyAddNoteFailed', 'Não foi possível adicionar a nota.'));
   });
 
   btnClearNotes.addEventListener('click', async () => {
-    if (!confirm('Deseja remover todas as notas desta página?')) return;
+    if (!confirm(t('privacyConfirmClearNotes', 'Deseja remover todas as notas desta página?'))) return;
     await sendToActiveTab({ type: 'PRIVACY/CLEAR_NOTES' });
   });
 });

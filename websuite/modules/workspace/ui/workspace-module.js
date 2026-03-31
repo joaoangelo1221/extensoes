@@ -1,6 +1,6 @@
-﻿// popup.js
-// Script principal para o popup avanÃ§ado. Controla a renderizaÃ§Ã£o de diretÃ³rios
-// e itens, bem como as interaÃ§Ãµes do usuÃ¡rio para adicionar, remover,
+// popup.js
+// Script principal para o popup avanÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ado. Controla a renderizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rios
+// e itens, bem como as interaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes do usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio para adicionar, remover,
 // fixar, mover, notas, destaques, lembretes, credenciais e capturas de tela.
 
 import * as model from '../data/workspace-model.js';
@@ -12,20 +12,36 @@ import {
   showReminderModal,
   showCredentialsModal
 } from './workspace-ui.js';
+import { applyDocumentTranslations } from '../../../core/i18n-dom.js';
+import { getLanguage, translate } from '../../../core/i18n.js';
 
-// Nome do diretÃ³rio especial de mais acessados (cacheado)
-const MORE_ACCESSED_NAME = chrome.i18n.getMessage('moreAccessed') || 'Mais acessados';
+const language = await getLanguage();
+const getMessage = (key, fallback = '') => translate(language, key) || fallback || key;
 
-// Nome da lixeira
-const TRASH_NAME = chrome.i18n.getMessage('trash') || 'Lixeira';
+const GENERAL_NAME = 'Geral';
+const MORE_ACCESSED_NAME = 'Mais acessados';
+const TRASH_NAME = 'Lixeira';
 
 // Estado global
 let selectedDirectory = 'Diretorio 1';
 let searchQuery = '';
 let currentMenu = null; // Menu suspenso atualmente aberto
-// Estado de seleÃ§Ã£o mÃºltipla
+// Estado de seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºltipla
 let selectMode = false;
 let selectedItems = new Set();
+
+export function sanitizeText(text) {
+  return String(text ?? '')
+    .normalize('NFC')
+    .replace(/[^\p{L}\p{N}\p{P}\p{Zs}]/gu, '');
+}
+
+function getDirectoryLabel(name) {
+  if (name === GENERAL_NAME) return sanitizeText(getMessage('general', 'Geral'));
+  if (name === MORE_ACCESSED_NAME) return sanitizeText(getMessage('moreAccessed', 'Mais acessados'));
+  if (name === TRASH_NAME) return sanitizeText(getMessage('trash', 'Lixeira'));
+  return sanitizeText(name);
+}
 
 function hasFilledNote(item) {
   return Boolean(item?.notes && item.notes.trim());
@@ -41,20 +57,20 @@ function hasFilledCredentials(item) {
 }
 
 async function openNoteEditor(item) {
-  const newNote = await showTextModal(chrome.i18n.getMessage('editNote') || 'Editar anotação', item.notes || '', 1000);
+  const newNote = await showTextModal(getMessage('editNote') || 'Editar anotaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o', item.notes || '', 1000);
   if (newNote !== null) {
     await model.updateNote(item.directory, item.id, newNote);
-    showToast(chrome.i18n.getMessage('noteSaved') || 'Anotação salva.', 'success');
+    showToast(getMessage('noteSaved') || 'AnotaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o salva.', 'success');
     await renderItems();
   }
 }
 
 async function openReminderCreator(item) {
-  const result = await showReminderModal(chrome.i18n.getMessage('addReminder') || 'Adicionar lembrete');
+  const result = await showReminderModal(getMessage('addReminder') || 'Adicionar lembrete');
   if (result) {
     try {
       await model.addReminder(item.directory, item.id, result.date, result.note || '');
-      showToast(chrome.i18n.getMessage('reminderSaved') || 'Lembrete salvo.', 'success');
+      showToast(getMessage('reminderSaved') || 'Lembrete salvo.', 'success');
       await renderItems();
     } catch (err) {
       showToast(err.message || 'Erro', 'error');
@@ -76,7 +92,7 @@ async function openCredentialCreator(item, masterPassword = null) {
       result.pass,
       masterPassword || result.masterPassword
     );
-    showToast(chrome.i18n.getMessage('credentialsSaved') || 'Credenciais salvas.', 'success');
+    showToast(getMessage('credentialsSaved') || 'Credenciais salvas.', 'success');
     await renderItems();
     if (masterPassword) {
       await showCredentialsView(item, masterPassword);
@@ -86,29 +102,29 @@ async function openCredentialCreator(item, masterPassword = null) {
   }
 }
 
-// Atualiza estado do botÃ£o de adicionar conforme diretÃ³rio selecionado
+// Atualiza estado do botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de adicionar conforme diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio selecionado
 function updateAddButtonState() {
   const addBtn = document.getElementById('add-site');
   if (!addBtn) return;
-  // Desabilita adicionar apenas em Ã¡reas virtuais.
-  const disabled = selectedDirectory === 'Geral' || selectedDirectory === MORE_ACCESSED_NAME || selectedDirectory === TRASH_NAME;
+  // Desabilita adicionar apenas em ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡reas virtuais.
+  const disabled = selectedDirectory === GENERAL_NAME || selectedDirectory === MORE_ACCESSED_NAME || selectedDirectory === TRASH_NAME;
   addBtn.disabled = disabled;
   addBtn.classList.toggle('disabled', disabled);
 }
 
-// Atualiza visibilidade e textos dos controles de seleÃ§Ã£o mÃºltipla
+// Atualiza visibilidade e textos dos controles de seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºltipla
 function updateMultiSelectControls() {
   const selectToggle = document.getElementById('toggle-select');
   const delSelected = document.getElementById('delete-selected');
   const restoreSelected = document.getElementById('restore-selected');
   if (!selectToggle || !delSelected) return;
-  // Atualiza texto do botão de alternar seleção
+  // Atualiza texto do botÃƒÆ’Ã‚Â£o de alternar seleÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o
   if (selectMode) {
-    selectToggle.textContent = chrome.i18n.getMessage('cancelSelect') || 'Cancelar seleção';
+    selectToggle.textContent = getMessage('cancelSelect') || 'Cancelar seleÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o';
   } else {
-    selectToggle.textContent = chrome.i18n.getMessage('select') || 'Selecionar';
+    selectToggle.textContent = getMessage('select') || 'Selecionar';
   }
-  // Mostra ou oculta botões de ação dependendo do contexto
+  // Mostra ou oculta botÃƒÆ’Ã‚Âµes de aÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o dependendo do contexto
   const anySelected = selectedItems.size > 0;
   delSelected.style.display = selectMode && !anySelected ? 'none' : selectMode ? 'inline-flex' : 'none';
   if (restoreSelected) {
@@ -116,7 +132,7 @@ function updateMultiSelectControls() {
   }
 }
 
-// InicializaÃ§Ã£o
+// InicializaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
 document.addEventListener('DOMContentLoaded', async () => {
   await localizeStrings();
   const settings = await model.getSettings();
@@ -126,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await renderItems();
   setupEventHandlers();
 
-  // A funcionalidade de captura de print foi removida. Nenhuma mensagem global Ã© tratada aqui.
+  // A funcionalidade de captura de print foi removida. Nenhuma mensagem global ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© tratada aqui.
 });
 
 /**
@@ -134,18 +150,8 @@ document.addEventListener('DOMContentLoaded', async () => {
  * correspondente em messages.json.
  */
 async function localizeStrings() {
-  document.querySelectorAll('[data-i18n]').forEach((el) => {
-    const key = el.getAttribute('data-i18n');
-    const msg = chrome.i18n.getMessage(key);
-    if (msg) el.textContent = msg;
-  });
-  // Placeholder da busca
-  const searchInput = document.getElementById('search-input');
-  if (searchInput) {
-    searchInput.placeholder = chrome.i18n.getMessage('search') || 'Buscar...';
-  }
-  // TÃ­tulo da pÃ¡gina
-  document.title = chrome.i18n.getMessage('extensionName') || document.title;
+  await applyDocumentTranslations(document);
+  document.title = sanitizeText(document.title);
 }
 
 /**
@@ -161,23 +167,23 @@ function applyTheme(theme) {
 }
 
 /**
- * Renderiza lista de diretÃ³rios e tab especial. MantÃ©m ordem e
+ * Renderiza lista de diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rios e tab especial. MantÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m ordem e
  * adiciona handlers de clique e menu de contexto.
  */
 async function renderDirectories() {
   const container = document.getElementById('directories');
   container.innerHTML = '';
   const names = await model.getDirectoryNames();
-  // 'names' jÃ¡ vem ordenado a partir de model.getDirectoryNames()
-  // Cria guia para cada diretÃ³rio. Habilita drag apenas para diretÃ³rios de usuÃ¡rio
+  // 'names' jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ vem ordenado a partir de model.getDirectoryNames()
+  // Cria guia para cada diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio. Habilita drag apenas para diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rios de usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio
   names.forEach((name, idx) => {
     const tab = document.createElement('div');
     tab.className = 'directory-tab';
-    tab.textContent = name;
+    tab.textContent = getDirectoryLabel(name);
     tab.dataset.name = name;
-    // Determina se Ã© diretÃ³rio de usuÃ¡rio
-    const isUserDir = name !== 'Geral' && name !== MORE_ACCESSED_NAME && name !== TRASH_NAME;
-    // Atribui Ã­ndice relativo em names (comeÃ§ando apÃ³s Geral)
+    // Determina se ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio de usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio
+    const isUserDir = name !== GENERAL_NAME && name !== MORE_ACCESSED_NAME && name !== TRASH_NAME;
+    // Atribui ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ndice relativo em names (comeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ando apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s Geral)
     tab.dataset.index = idx;
     if (name === selectedDirectory) tab.classList.add('active');
     tab.addEventListener('click', async () => {
@@ -205,27 +211,27 @@ async function renderDirectories() {
       if (!dataTransfer) return;
       try {
         const payload = JSON.parse(dataTransfer);
-        // Verifica se Ã© arrastar item
+        // Verifica se ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© arrastar item
         if (payload.id && payload.directory) {
           const { id, directory: fromDir } = payload;
           const toDir = name;
         if (fromDir && id && toDir && fromDir !== toDir) {
-          // NÃ£o permite mover para a Lixeira pela aba de diretÃ³rios.
-          if (toDir === 'Geral' || toDir === TRASH_NAME) return;
+          // NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o permite mover para a Lixeira pela aba de diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rios.
+          if (toDir === GENERAL_NAME || toDir === TRASH_NAME) return;
           await model.moveItem(fromDir, toDir, id);
           await renderItems();
-          showToast(chrome.i18n.getMessage('move') || 'Mover', 'success');
+          showToast(getMessage('move') || 'Mover', 'success');
         }
         } else if (payload.tabIndex !== undefined) {
-          // Arrastando um diretÃ³rio: payload.tabIndex contÃ©m Ã­ndice de origem
+          // Arrastando um diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio: payload.tabIndex contÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ndice de origem
           const fromIndex = parseInt(payload.tabIndex, 10);
           const toIndex = parseInt(tab.dataset.index, 10);
           if (!isNaN(fromIndex) && !isNaN(toIndex) && fromIndex !== toIndex) {
-            // Ajusta Ã­ndices para pular 'Geral'
-            // names inclui 'Geral' na posiÃ§Ã£o 0; DirectoryOrder opera sobre nomes sem Geral
-            // fromIndex e toIndex se referem a posiÃ§Ãµes em names; convertendo para posiÃ§Ãµes em array de usuÃ¡rio
-            const fromUser = names[fromIndex] === 'Geral' ? -1 : names.slice(1).indexOf(names[fromIndex]);
-            const toUser = names[toIndex] === 'Geral' ? -1 : names.slice(1).indexOf(names[toIndex]);
+            // Ajusta ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­ndices para pular 'Geral'
+            // names inclui 'Geral' na posiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o 0; DirectoryOrder opera sobre nomes sem Geral
+            // fromIndex e toIndex se referem a posiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes em names; convertendo para posiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes em array de usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio
+            const fromUser = names[fromIndex] === GENERAL_NAME ? -1 : names.slice(1).indexOf(names[fromIndex]);
+            const toUser = names[toIndex] === GENERAL_NAME ? -1 : names.slice(1).indexOf(names[toIndex]);
             if (fromUser >= 0 && toUser >= 0) {
               await model.reorderDirectories(fromUser, toUser);
               await renderDirectories();
@@ -236,7 +242,7 @@ async function renderDirectories() {
         console.error('Erro ao processar drop:', err);
       }
     });
-    // Drag de diretÃ³rios (somente usuÃ¡rios)
+    // Drag de diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rios (somente usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rios)
     if (isUserDir) {
       tab.setAttribute('draggable', 'true');
       tab.addEventListener('dragstart', (e) => {
@@ -248,7 +254,7 @@ async function renderDirectories() {
   // Guia especial de mais acessados
   const specialTab = document.createElement('div');
   specialTab.className = 'directory-tab special';
-  specialTab.textContent = MORE_ACCESSED_NAME;
+  specialTab.textContent = getDirectoryLabel(MORE_ACCESSED_NAME);
   specialTab.dataset.name = MORE_ACCESSED_NAME;
   if (selectedDirectory === MORE_ACCESSED_NAME) specialTab.classList.add('active');
   specialTab.addEventListener('click', async () => {
@@ -261,7 +267,7 @@ async function renderDirectories() {
   // Guia da Lixeira
   const trashTab = document.createElement('div');
   trashTab.className = 'directory-tab trash';
-  trashTab.textContent = TRASH_NAME;
+  trashTab.textContent = getDirectoryLabel(TRASH_NAME);
   trashTab.dataset.name = TRASH_NAME;
   if (selectedDirectory === TRASH_NAME) trashTab.classList.add('active');
   trashTab.addEventListener('click', async () => {
@@ -274,23 +280,23 @@ async function renderDirectories() {
 }
 
 /**
- * Renderiza a lista de itens conforme diretÃ³rio selecionado ou lista de
- * mais acessados. Aplica busca, ordenaÃ§Ã£o e constrÃ³i cards com aÃ§Ãµes.
+ * Renderiza a lista de itens conforme diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio selecionado ou lista de
+ * mais acessados. Aplica busca, ordenaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o e constrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³i cards com aÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes.
  */
 async function renderItems() {
   const listEl = document.getElementById('items-list');
   listEl.innerHTML = '';
   let items = [];
-  // Atualiza botÃ£o de adicionar com base no diretÃ³rio selecionado
+  // Atualiza botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de adicionar com base no diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio selecionado
   updateAddButtonState();
   const isTrash = selectedDirectory === TRASH_NAME;
-  const isAggregator = selectedDirectory === 'Geral';
+  const isAggregator = selectedDirectory === GENERAL_NAME;
   if (selectedDirectory === MORE_ACCESSED_NAME) {
     items = await model.getTopVisited(12);
   } else if (isTrash) {
     const trashList = await model.getTrash();
     items = trashList.map((t) => {
-      // item contÃ©m dados do site. Inclui id original em item.id e id da lixeira em _trashId
+      // item contÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©m dados do site. Inclui id original em item.id e id da lixeira em _trashId
       return { ...t.item, directory: t.originalDirectory, _trashId: t.id, deletedAt: t.deletedAt };
     });
   } else if (isAggregator) {
@@ -311,18 +317,18 @@ async function renderItems() {
       );
     });
   }
-  // Ordena fixados primeiro (somente para diretÃ³rios regulares e agregador)
+  // Ordena fixados primeiro (somente para diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rios regulares e agregador)
   if (!isTrash && !isAggregator && selectedDirectory !== MORE_ACCESSED_NAME) {
     const pinnedItems = items.filter((i) => i.pinned);
     const others = items.filter((i) => !i.pinned);
     items = [...pinnedItems, ...others];
   }
-  // PermissÃ£o de drag-and-drop para itens: apenas diretÃ³rios regulares, sem busca
+  // PermissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de drag-and-drop para itens: apenas diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rios regulares, sem busca
   const allowDnD = !isTrash && !isAggregator && selectedDirectory !== MORE_ACCESSED_NAME && !searchQuery;
   if (items.length === 0) {
     const emptyState = document.createElement('li');
     emptyState.className = 'item-card';
-    emptyState.textContent = chrome.i18n.getMessage('noItems') || 'Nenhum site salvo';
+    emptyState.textContent = sanitizeText(getMessage('noItems') || 'Nenhum site salvo');
     listEl.appendChild(emptyState);
     return;
   }
@@ -334,7 +340,7 @@ async function renderItems() {
     // Header
     const header = document.createElement('div');
     header.className = 'card-header';
-    // Se em modo seleÃ§Ã£o, adiciona checkbox no inÃ­cio
+    // Se em modo seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o, adiciona checkbox no inÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cio
     if (selectMode) {
       const chk = document.createElement('input');
       chk.type = 'checkbox';
@@ -352,10 +358,10 @@ async function renderItems() {
       header.appendChild(chk);
     }
     // Favicon: tenta usar o favicon informado. Se ausente, usa
-    // chrome://favicon para recuperar do domÃ­nio. Para sites que nÃ£o
+    // chrome://favicon para recuperar do domÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­nio. Para sites que nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
     // retornam favicon (por exemplo, WhatsApp Web), usamos uma URL
-    // padrÃ£o do site ou o Ã­cone da extensÃ£o como fallback. Ao
-    // falhar, o elemento recebe o Ã­cone padrÃ£o do pacote.
+    // padrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do site ou o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cone da extensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o como fallback. Ao
+    // falhar, o elemento recebe o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cone padrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do pacote.
     const fav = document.createElement('img');
     fav.className = 'favicon';
     let favUrl = '';
@@ -365,7 +371,7 @@ async function renderItems() {
     if (!favUrl) {
       try {
         const u = new URL(item.url);
-        // Pega Ã­cone padrÃ£o do domÃ­nio
+        // Pega ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cone padrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do domÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­nio
         favUrl = `chrome://favicon/size/32@2x/${u.origin}`;
       } catch (_) {
         favUrl = '';
@@ -378,19 +384,19 @@ async function renderItems() {
       if (/web\.whatsapp\.com/.test(item.url)) {
         fav.src = 'https://web.whatsapp.com/favicon.ico';
       } else {
-        // Usa Ã­cone padrÃ£o da extensÃ£o como fallback
+        // Usa ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­cone padrÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o da extensÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o como fallback
         fav.src = chrome.runtime.getURL('icons/48.png');
       }
       fav.onerror = null;
     };
     header.appendChild(fav);
-    // TÃ­tulo e destaque
+    // TÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo e destaque
     const titleWrap = document.createElement('div');
     titleWrap.className = 'card-title';
     const titleEl = document.createElement('span');
     titleEl.className = 'title';
-    titleEl.textContent = item.title || item.url;
-    titleEl.title = item.url;
+    titleEl.textContent = sanitizeText(item.title || item.url);
+    titleEl.title = sanitizeText(item.url);
     // Abrir em nova guia
     titleEl.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -401,54 +407,54 @@ async function renderItems() {
     if (item.highlight) {
       const hl = document.createElement('span');
       hl.className = 'highlight';
-      hl.textContent = item.highlight;
+      hl.textContent = sanitizeText(item.highlight);
       titleWrap.appendChild(hl);
     }
     header.appendChild(titleWrap);
-    // Exibe diretÃ³rio original em modo lixeira
+    // Exibe diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio original em modo lixeira
     if (isTrash) {
       const orig = document.createElement('span');
       orig.className = 'origin-dir';
-      orig.textContent = item.directory;
+      orig.textContent = sanitizeText(item.directory);
       titleWrap.appendChild(orig);
     }
     header.appendChild(titleWrap);
-    // ConstruÃ§Ã£o das aÃ§Ãµes varia conforme contexto
+    // ConstruÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o das aÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes varia conforme contexto
     const actions = document.createElement('div');
     actions.className = 'card-actions';
     if (isTrash) {
       // Restaurar
       const restoreBtn = document.createElement('button');
-      restoreBtn.title = chrome.i18n.getMessage('restore') || 'Restaurar';
+      restoreBtn.title = getMessage('restore') || 'Restaurar';
       restoreBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M3.51 9a9 9 0 0 1 15 5l1 3"/></svg>';
       restoreBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         await model.restoreFromTrash(item._trashId);
         await renderItems();
-        showToast(chrome.i18n.getMessage('restored') || 'Restaurado', 'success');
+        showToast(getMessage('restored') || 'Restaurado', 'success');
       });
       actions.appendChild(restoreBtn);
       // Excluir definitivamente
       const permDelBtn = document.createElement('button');
-      permDelBtn.title = chrome.i18n.getMessage('deletePermanently') || 'Excluir definitivamente';
+      permDelBtn.title = getMessage('deletePermanently') || 'Excluir definitivamente';
       permDelBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
       permDelBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const ok = await showConfirm(chrome.i18n.getMessage('deletePermanentlyPrompt') || 'Excluir permanentemente?', {
-          okLabel: chrome.i18n.getMessage('delete') || 'Excluir',
-          cancelLabel: chrome.i18n.getMessage('cancel') || 'Cancelar'
+        const ok = await showConfirm(getMessage('deletePermanentlyPrompt') || 'Excluir permanentemente?', {
+          okLabel: getMessage('delete') || 'Excluir',
+          cancelLabel: getMessage('cancel') || 'Cancelar'
         });
         if (ok) {
           await model.permanentlyDeleteTrash([item._trashId]);
           await renderItems();
-          showToast(chrome.i18n.getMessage('delete') || 'Excluir', 'success');
+          showToast(getMessage('delete') || 'Excluir', 'success');
         }
       });
       actions.appendChild(permDelBtn);
     } else {
-      // BotÃ£o abrir
+      // BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o abrir
       const openBtn = document.createElement('button');
-      openBtn.title = chrome.i18n.getMessage('open') || 'Abrir';
+      openBtn.title = getMessage('open') || 'Abrir';
       openBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><polyline points="7 7 17 7 17 17"/></svg>';
       openBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -457,7 +463,7 @@ async function renderItems() {
       actions.appendChild(openBtn);
       // Fixar / Desfixar
       const pinBtn = document.createElement('button');
-      pinBtn.title = item.pinned ? chrome.i18n.getMessage('unpin') || 'Desfixar' : chrome.i18n.getMessage('pin') || 'Fixar';
+      pinBtn.title = item.pinned ? getMessage('unpin') || 'Desfixar' : getMessage('pin') || 'Fixar';
       pinBtn.innerHTML = item.pinned
         ? '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 17.27L18.18 21 16.54 13.97 22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"></path></svg>'
         : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15 11 23 9 17 14 19 22 12 17.77 5 22 7 14 1 9 9 11 12 2"></polygon></svg>';
@@ -469,51 +475,51 @@ async function renderItems() {
       actions.appendChild(pinBtn);
       // Mover
       const moveBtn = document.createElement('button');
-      moveBtn.title = chrome.i18n.getMessage('move') || 'Mover';
+      moveBtn.title = getMessage('move') || 'Mover';
       moveBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"/><line x1="2" y1="12" x2="22" y2="12"/><polyline points="19 9 22 12 19 15"/></svg>';
       moveBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const names = await model.getDirectoryNames();
-        // Remove diretÃ³rio atual e pastas virtuais
+        // Remove diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio atual e pastas virtuais
         const dirs = names.filter((n) => n !== item.directory && n !== 'Geral' && n !== TRASH_NAME);
         if (dirs.length === 0) return;
-        const dest = await showSelectMenu(chrome.i18n.getMessage('move') || 'Mover', dirs);
+        const dest = await showSelectMenu(getMessage('move') || 'Mover', dirs);
         if (dest) {
           await model.moveItem(item.directory, dest, item.id);
           await renderItems();
-          showToast(`Site movido para o diretÃ³rio ${dest}`, 'success');
+          showToast(`Site movido para o diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio ${dest}`, 'success');
         }
       });
       actions.appendChild(moveBtn);
       // Remover (enviar para lixeira)
       const delBtn = document.createElement('button');
-      delBtn.title = chrome.i18n.getMessage('remove') || 'Remover';
+      delBtn.title = getMessage('remove') || 'Remover';
       delBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
       delBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const ok = await showConfirm(chrome.i18n.getMessage('removePrompt') || 'Remover este site?', {
-          okLabel: chrome.i18n.getMessage('remove') || 'Remover',
-          cancelLabel: chrome.i18n.getMessage('cancel') || 'Cancelar'
+        const ok = await showConfirm(getMessage('removePrompt') || 'Remover este site?', {
+          okLabel: getMessage('remove') || 'Remover',
+          cancelLabel: getMessage('cancel') || 'Cancelar'
         });
         if (ok) {
           await model.removeSite(item.directory, item.id, true);
           await renderItems();
-          showToast(chrome.i18n.getMessage('remove') || 'Remover', 'success');
+          showToast(getMessage('remove') || 'Remover', 'success');
         }
       });
       actions.appendChild(delBtn);
       // Funcionalidades
       const funcBtn = document.createElement('button');
-      funcBtn.title = chrome.i18n.getMessage('functions') || 'Funcionalidades';
+      funcBtn.title = getMessage('functions') || 'Funcionalidades';
       funcBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1 1 0 0 0-.9-1.6 4 4 0 0 0-5-5 .9.9 0 0 0-.3-.7 1 1 0 0 0-1.5 0 .9.9 0 0 0-.3.7 4 4 0 0 0-5 5A1 1 0 0 0 4.6 15a1 1 0 0 0 0 1.5 4 4 0 0 0 5 5 1 1 0 0 0 1.5 1.3 1 1 0 0 0 1.5 0A1 1 0 0 0 15 21a4 4 0 0 0 5-5 1 1 0 0 0-.6-1z"/></svg>';
       funcBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         openFunctionsMenu(funcBtn, item);
       });
       actions.appendChild(funcBtn);
-      // SeguranÃ§a
+      // SeguranÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a
       const secBtn = document.createElement('button');
-      secBtn.title = chrome.i18n.getMessage('security') || 'SeguranÃ§a e recursos';
+      secBtn.title = getMessage('security') || 'SeguranÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a e recursos';
       secBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
       secBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -530,8 +536,8 @@ async function renderItems() {
     if (hasFilledNote(item)) {
       metadataIndicators.push({
         className: 'meta-indicator note',
-        title: 'Anotação preenchida',
-        label: 'Anotação'
+        title: 'AnotaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o preenchida',
+        label: 'AnotaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o'
       });
     }
     if (hasFilledReminders(item)) {
@@ -559,7 +565,7 @@ async function renderItems() {
         dot.setAttribute('aria-label', indicator.label);
         dot.addEventListener('click', async (event) => {
           event.stopPropagation();
-          if (indicator.label === 'Anotação') {
+          if (indicator.label === 'AnotaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o') {
             await openNoteEditor(item);
             return;
           }
@@ -590,7 +596,7 @@ async function renderItems() {
     }
     listEl.appendChild(card);
   });
-  // ReordenaÃ§Ã£o por drag-and-drop
+  // ReordenaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o por drag-and-drop
   if (allowDnD) {
     listEl.ondragover = (e) => {
       e.preventDefault();
@@ -623,12 +629,12 @@ async function renderItems() {
     listEl.ondrop = null;
   }
 
-  // Atualiza controles de seleÃ§Ã£o mÃºltipla apÃ³s renderizar
+  // Atualiza controles de seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºltipla apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s renderizar
   updateMultiSelectControls();
 }
 
 /**
- * Calcula o elemento apÃ³s o qual o item arrastado deve ser inserido.
+ * Calcula o elemento apÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s o qual o item arrastado deve ser inserido.
  * @param {HTMLElement} container
  * @param {number} y
  */
@@ -665,7 +671,7 @@ async function openItem(item) {
 }
 
 /**
- * Manipuladores de eventos globais (botÃµes e inputs)
+ * Manipuladores de eventos globais (botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes e inputs)
  */
 function setupEventHandlers() {
   const addBtn = document.getElementById('add-site');
@@ -677,7 +683,7 @@ function setupEventHandlers() {
   });
   const createDirBtn = document.getElementById('create-directory');
   createDirBtn.addEventListener('click', async () => {
-    const name = await showPrompt(chrome.i18n.getMessage('newDirectoryName') || 'Nome do diretÃ³rio');
+    const name = await showPrompt(getMessage('newDirectoryName') || 'Nome do diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio');
     if (name) {
       try {
         await model.createDirectory(name);
@@ -685,15 +691,15 @@ function setupEventHandlers() {
         await model.setSettings({ selectedDirectory: name });
         await renderDirectories();
         await renderItems();
-        showToast(chrome.i18n.getMessage('createDirectory') || 'Criar diretÃ³rio', 'success');
+        showToast(getMessage('createDirectory') || 'Criar diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio', 'success');
       } catch (err) {
         showToast(err.message || 'Erro', 'error');
       }
     }
   });
-  // Controles de seleÃ§Ã£o mÃºltipla
+  // Controles de seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºltipla
   const actionsBar = document.querySelector('.actions-bar');
-  // BotÃ£o para alternar modo seleÃ§Ã£o
+  // BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para alternar modo seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
   let selectToggle = document.getElementById('toggle-select');
   if (!selectToggle) {
     selectToggle = document.createElement('button');
@@ -702,7 +708,7 @@ function setupEventHandlers() {
     selectToggle.style.display = 'inline-flex';
     selectToggle.style.alignItems = 'center';
     selectToggle.style.gap = '4px';
-    selectToggle.textContent = chrome.i18n.getMessage('select') || 'Selecionar';
+    selectToggle.textContent = getMessage('select') || 'Selecionar';
     selectToggle.addEventListener('click', () => {
       selectMode = !selectMode;
       selectedItems.clear();
@@ -711,27 +717,27 @@ function setupEventHandlers() {
     });
     actionsBar.appendChild(selectToggle);
   }
-  // BotÃ£o para remover selecionados (envia para lixeira ou exclui definitivamente)
+  // BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para remover selecionados (envia para lixeira ou exclui definitivamente)
   let delSelected = document.getElementById('delete-selected');
   if (!delSelected) {
     delSelected = document.createElement('button');
     delSelected.id = 'delete-selected';
     delSelected.className = 'secondary-btn';
     delSelected.style.display = 'none';
-    delSelected.textContent = chrome.i18n.getMessage('deleteSelected') || 'Remover selecionados';
+    delSelected.textContent = getMessage('deleteSelected') || 'Remover selecionados';
     delSelected.addEventListener('click', async () => {
       const ids = Array.from(selectedItems);
       if (ids.length === 0) return;
       if (selectedDirectory === TRASH_NAME) {
         // Excluir definitivamente itens da lixeira
         await model.permanentlyDeleteTrash(ids);
-        showToast(chrome.i18n.getMessage('delete') || 'Excluir', 'success');
+        showToast(getMessage('delete') || 'Excluir', 'success');
       } else if (selectedDirectory === MORE_ACCESSED_NAME) {
-        // NÃ£o suporta remoÃ§Ã£o em massa em "Mais acessados"
-        showToast(chrome.i18n.getMessage('cannotRemoveHere') || 'SeleÃ§Ã£o nÃ£o suportada neste contexto.', 'warning');
+        // NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o suporta remoÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o em massa em "Mais acessados"
+        showToast(getMessage('cannotRemoveHere') || 'SeleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o suportada neste contexto.', 'warning');
       } else {
         await model.removeSites(selectedDirectory, ids, true);
-        showToast(chrome.i18n.getMessage('remove') || 'Remover', 'success');
+        showToast(getMessage('remove') || 'Remover', 'success');
       }
       selectMode = false;
       selectedItems.clear();
@@ -740,21 +746,21 @@ function setupEventHandlers() {
     });
     actionsBar.appendChild(delSelected);
   }
-  // BotÃ£o para restaurar selecionados (apenas lixeira)
+  // BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o para restaurar selecionados (apenas lixeira)
   let restoreSelected = document.getElementById('restore-selected');
   if (!restoreSelected) {
     restoreSelected = document.createElement('button');
     restoreSelected.id = 'restore-selected';
     restoreSelected.className = 'secondary-btn';
     restoreSelected.style.display = 'none';
-    restoreSelected.textContent = chrome.i18n.getMessage('restoreSelected') || 'Restaurar selecionados';
+    restoreSelected.textContent = getMessage('restoreSelected') || 'Restaurar selecionados';
     restoreSelected.addEventListener('click', async () => {
       const ids = Array.from(selectedItems);
       if (ids.length === 0) return;
       for (const tid of ids) {
         await model.restoreFromTrash(tid);
       }
-      showToast(chrome.i18n.getMessage('restored') || 'Restaurado', 'success');
+      showToast(getMessage('restored') || 'Restaurado', 'success');
       selectMode = false;
       selectedItems.clear();
       await renderItems();
@@ -770,13 +776,13 @@ function setupEventHandlers() {
 }
 
 /**
- * Adiciona o site da aba atual ao diretÃ³rio selecionado. Verifica duplicidade.
+ * Adiciona o site da aba atual ao diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio selecionado. Verifica duplicidade.
  */
 async function onAddSite() {
   chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
     const tab = tabs && tabs[0];
     if (!tab || !tab.url || !/^https?:\/\//.test(tab.url)) {
-      showToast('Não é possível adicionar esta página.', 'error');
+      showToast('NÃƒÆ’Ã‚Â£o ÃƒÆ’Ã‚Â© possÃƒÆ’Ã‚Â­vel adicionar esta pÃƒÆ’Ã‚Â¡gina.', 'error');
       return;
     }
     const site = {
@@ -786,35 +792,35 @@ async function onAddSite() {
     };
     const result = await model.addSite(selectedDirectory, site, false);
     if (result.status === 'duplicate') {
-      const proceed = await showConfirm(chrome.i18n.getMessage('duplicatePrompt') || 'Site jÃ¡ adicionado. Deseja continuar mesmo assim?', {
-        okLabel: chrome.i18n.getMessage('addSite') || 'Adicionar',
-        cancelLabel: chrome.i18n.getMessage('cancel') || 'Cancelar'
+      const proceed = await showConfirm(getMessage('duplicatePrompt') || 'Site jÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ adicionado. Deseja continuar mesmo assim?', {
+        okLabel: getMessage('addSite') || 'Adicionar',
+        cancelLabel: getMessage('cancel') || 'Cancelar'
       });
       if (!proceed) return;
       const res2 = await model.addSite(selectedDirectory, site, true);
       if (res2.status === 'added' || res2.status === 'merged') {
-        showToast(chrome.i18n.getMessage('addedSuccess') || 'Adicionado com sucesso.', 'success');
+        showToast(getMessage('addedSuccess') || 'Adicionado com sucesso.', 'success');
         await renderItems();
       }
     } else {
-      showToast(chrome.i18n.getMessage('addedSuccess') || 'Adicionado com sucesso.', 'success');
+      showToast(getMessage('addedSuccess') || 'Adicionado com sucesso.', 'success');
       await renderItems();
     }
   });
 }
 
 /**
- * Mostra menu de funcionalidades para um item (anotaÃ§Ã£o, destaque, lembretes).
- * @param {HTMLElement} btn BotÃ£o clicado
+ * Mostra menu de funcionalidades para um item (anotaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o, destaque, lembretes).
+ * @param {HTMLElement} btn BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o clicado
  * @param {Object} item Item
  */
 function openFunctionsMenu(btn, item) {
   closeMenus();
   const menu = document.createElement('div');
   menu.className = 'popup-menu';
-  // Editar anotaÃ§Ã£o
+  // Editar anotaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o
   const noteBtn = document.createElement('button');
-  noteBtn.textContent = chrome.i18n.getMessage('editNote') || 'Editar anotaÃ§Ã£o';
+  noteBtn.textContent = getMessage('editNote') || 'Editar anotaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o';
   noteBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     closeMenus();
@@ -822,38 +828,38 @@ function openFunctionsMenu(btn, item) {
   });
   menu.appendChild(noteBtn);
 
-  // Renomear tÃ­tulo do site
+  // Renomear tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo do site
   const renameSiteBtn = document.createElement('button');
-  renameSiteBtn.textContent = chrome.i18n.getMessage('renameSite') || 'Renomear site';
+  renameSiteBtn.textContent = getMessage('renameSite') || 'Renomear site';
   renameSiteBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     closeMenus();
     const currentTitle = item.title || item.url;
-    const newTitle = await showPrompt(chrome.i18n.getMessage('renameSitePrompt') || 'Novo tÃ­tulo do site', currentTitle);
+    const newTitle = await showPrompt(getMessage('renameSitePrompt') || 'Novo tÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo do site', currentTitle);
     if (newTitle && newTitle.trim() && newTitle.trim() !== currentTitle) {
       await model.renameSite(item.directory, item.id, newTitle.trim());
-      showToast(chrome.i18n.getMessage('siteRenamed') || 'TÃ­tulo atualizado.', 'success');
+      showToast(getMessage('siteRenamed') || 'TÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­tulo atualizado.', 'success');
       await renderItems();
     }
   });
   menu.appendChild(renameSiteBtn);
   // Editar destaque
   const highlightBtn = document.createElement('button');
-  highlightBtn.textContent = chrome.i18n.getMessage('editHighlight') || 'Editar destaque';
+  highlightBtn.textContent = getMessage('editHighlight') || 'Editar destaque';
   highlightBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     closeMenus();
-    const newHighlight = await showTextModal(chrome.i18n.getMessage('editHighlight') || 'Editar destaque', item.highlight || '', 120);
+    const newHighlight = await showTextModal(getMessage('editHighlight') || 'Editar destaque', item.highlight || '', 120);
     if (newHighlight !== null) {
       await model.setHighlight(item.directory, item.id, newHighlight);
-      showToast(chrome.i18n.getMessage('highlightSaved') || 'Destaque salvo.', 'success');
+      showToast(getMessage('highlightSaved') || 'Destaque salvo.', 'success');
       await renderItems();
     }
   });
   menu.appendChild(highlightBtn);
   // Adicionar lembrete
   const reminderBtn = document.createElement('button');
-  reminderBtn.textContent = chrome.i18n.getMessage('addReminder') || 'Adicionar lembrete';
+  reminderBtn.textContent = getMessage('addReminder') || 'Adicionar lembrete';
   reminderBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     closeMenus();
@@ -862,7 +868,7 @@ function openFunctionsMenu(btn, item) {
   menu.appendChild(reminderBtn);
   // Ver lembretes
   const viewRemBtn = document.createElement('button');
-  viewRemBtn.textContent = chrome.i18n.getMessage('viewReminders') || 'Ver lembretes';
+  viewRemBtn.textContent = getMessage('viewReminders') || 'Ver lembretes';
   viewRemBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     closeMenus();
@@ -876,7 +882,7 @@ function openFunctionsMenu(btn, item) {
 }
 
 /**
- * Mostra menu de seguranÃ§a e recursos para um item (credenciais, print).
+ * Mostra menu de seguranÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a e recursos para um item (credenciais, print).
  * @param {HTMLElement} btn
  * @param {Object} item
  */
@@ -885,7 +891,7 @@ function openSecurityMenu(btn, item) {
   const menu = document.createElement('div');
   menu.className = 'popup-menu';
   const viewCredBtn = document.createElement('button');
-  viewCredBtn.textContent = chrome.i18n.getMessage('viewCredentials') || 'Ver credenciais';
+  viewCredBtn.textContent = getMessage('viewCredentials') || 'Ver credenciais';
   viewCredBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     closeMenus();
@@ -893,21 +899,21 @@ function openSecurityMenu(btn, item) {
   });
   menu.appendChild(viewCredBtn);
   const addCredBtn = document.createElement('button');
-  addCredBtn.textContent = chrome.i18n.getMessage('editCredentials') || 'Gerenciar credenciais';
+  addCredBtn.textContent = getMessage('editCredentials') || 'Gerenciar credenciais';
   addCredBtn.addEventListener('click', async (e) => {
     e.stopPropagation();
     closeMenus();
     await openCredentialCreator(item);
   });
   menu.appendChild(addCredBtn);
-  // OpÃ§Ãµes de captura de print e galeria removidas
+  // OpÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes de captura de print e galeria removidas
   positionMenu(btn, menu);
   currentMenu = menu;
   document.body.appendChild(menu);
 }
 
 /**
- * Posiciona um menu abaixo do botÃ£o sem sair da janela.
+ * Posiciona um menu abaixo do botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o sem sair da janela.
  * @param {HTMLElement} anchor
  * @param {HTMLElement} menu
  */
@@ -946,7 +952,7 @@ function showRemindersList(item) {
   const modal = document.createElement('div');
   modal.className = 'modal note-modal';
   const heading = document.createElement('h3');
-  heading.textContent = chrome.i18n.getMessage('viewReminders') || 'Lembretes';
+  heading.textContent = getMessage('viewReminders') || 'Lembretes';
   modal.appendChild(heading);
   const list = document.createElement('div');
   list.className = 'reminders-list';
@@ -958,16 +964,16 @@ function showRemindersList(item) {
       text.textContent = `${rem.date} - ${rem.note || ''}`;
       row.appendChild(text);
       const del = document.createElement('button');
-      del.title = chrome.i18n.getMessage('delete') || 'Excluir';
+      del.title = getMessage('delete') || 'Excluir';
       del.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 0V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
       del.addEventListener('click', async () => {
-        const ok = await showConfirm(chrome.i18n.getMessage('deleteReminderConfirm') || 'Excluir lembrete?', {
-          okLabel: chrome.i18n.getMessage('delete') || 'Excluir',
-          cancelLabel: chrome.i18n.getMessage('cancel') || 'Cancelar'
+        const ok = await showConfirm(getMessage('deleteReminderConfirm') || 'Excluir lembrete?', {
+          okLabel: getMessage('delete') || 'Excluir',
+          cancelLabel: getMessage('cancel') || 'Cancelar'
         });
         if (ok) {
           await model.removeReminder(item.directory, item.id, idx);
-          showToast(chrome.i18n.getMessage('delete') || 'Excluir', 'success');
+          showToast(getMessage('delete') || 'Excluir', 'success');
           container.style.display = 'none';
           container.innerHTML = '';
           renderItems();
@@ -978,7 +984,7 @@ function showRemindersList(item) {
     });
   } else {
     const empty = document.createElement('p');
-    empty.textContent = chrome.i18n.getMessage('noReminders') || 'Nenhum lembrete';
+    empty.textContent = getMessage('noReminders') || 'Nenhum lembrete';
     list.appendChild(empty);
   }
   modal.appendChild(list);
@@ -986,7 +992,7 @@ function showRemindersList(item) {
   buttons.className = 'modal-buttons';
   const closeBtn = document.createElement('button');
   closeBtn.className = 'modal-btn ok';
-  closeBtn.textContent = chrome.i18n.getMessage('close') || 'Fechar';
+  closeBtn.textContent = getMessage('close') || 'Fechar';
   closeBtn.addEventListener('click', () => {
     container.style.display = 'none';
     container.innerHTML = '';
@@ -997,7 +1003,7 @@ function showRemindersList(item) {
 }
 
 /**
- * Mostra menu de seleÃ§Ã£o simples para escolher diretÃ³rio destino.
+ * Mostra menu de seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o simples para escolher diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio destino.
  * @param {string} title
  * @param {string[]} options
  * @returns {Promise<string|null>}
@@ -1010,11 +1016,11 @@ function showSelectMenu(title, options) {
     const modal = document.createElement('div');
     // Use apenas a classe move-modal para centralizar e dimensionar
     modal.className = 'modal move-modal';
-    // CabeÃ§alho do modal
+    // CabeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§alho do modal
     const heading = document.createElement('h3');
     heading.textContent = title;
     modal.appendChild(heading);
-    // Ãrea de lista com rolagem quando necessÃ¡rio
+    // ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Ârea de lista com rolagem quando necessÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio
     const list = document.createElement('div');
     list.style.display = 'flex';
     list.style.flexDirection = 'column';
@@ -1031,12 +1037,12 @@ function showSelectMenu(title, options) {
       list.appendChild(b);
     });
     modal.appendChild(list);
-    // RodapÃ© com botÃ£o de cancelar
+    // RodapÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© com botÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de cancelar
     const footer = document.createElement('div');
     footer.className = 'modal-buttons';
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'modal-btn cancel';
-    cancelBtn.textContent = chrome.i18n.getMessage('cancel') || 'Cancelar';
+    cancelBtn.textContent = getMessage('cancel') || 'Cancelar';
     cancelBtn.addEventListener('click', () => cleanup(null));
     footer.appendChild(cancelBtn);
     modal.appendChild(footer);
@@ -1050,30 +1056,30 @@ function showSelectMenu(title, options) {
 }
 
 /**
- * Menu de contexto de diretÃ³rio para renomear e excluir.
+ * Menu de contexto de diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio para renomear e excluir.
  * @param {string} dirName
  * @param {number} x
  * @param {number} y
  */
 function showDirectoryContextMenu(dirName, x, y) {
   // Impede para Geral e especial
-  if (dirName === 'Geral' || dirName === MORE_ACCESSED_NAME || dirName === TRASH_NAME) return;
+  if (dirName === GENERAL_NAME || dirName === MORE_ACCESSED_NAME || dirName === TRASH_NAME) return;
   closeMenus();
   const menu = document.createElement('div');
   menu.className = 'popup-menu';
   // Renomear
   const rename = document.createElement('button');
-  rename.textContent = chrome.i18n.getMessage('renameDirectory') || 'Renomear';
+  rename.textContent = getMessage('renameDirectory') || 'Renomear';
   rename.addEventListener('click', async (e) => {
     e.stopPropagation();
     closeMenus();
-    const newName = await showPrompt(chrome.i18n.getMessage('renameDirectoryPrompt') || 'Novo nome', dirName);
+    const newName = await showPrompt(getMessage('renameDirectoryPrompt') || 'Novo nome', dirName);
     if (newName && newName !== dirName) {
       try {
         await model.renameDirectory(dirName, newName);
         await renderDirectories();
         await renderItems();
-        showToast(chrome.i18n.getMessage('rename') || 'Renomear', 'success');
+        showToast(getMessage('rename') || 'Renomear', 'success');
       } catch (err) {
         showToast(err.message || 'Erro', 'error');
       }
@@ -1082,20 +1088,20 @@ function showDirectoryContextMenu(dirName, x, y) {
   menu.appendChild(rename);
   // Excluir
   const del = document.createElement('button');
-  del.textContent = chrome.i18n.getMessage('deleteDirectory') || 'Excluir diretÃ³rio';
+  del.textContent = getMessage('deleteDirectory') || 'Excluir diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio';
   del.addEventListener('click', async (e) => {
     e.stopPropagation();
     closeMenus();
-    const ok = await showConfirm(chrome.i18n.getMessage('deleteDirectoryConfirm') || 'Excluir diretÃ³rio?', {
-      okLabel: chrome.i18n.getMessage('delete') || 'Excluir',
-      cancelLabel: chrome.i18n.getMessage('cancel') || 'Cancelar'
+    const ok = await showConfirm(getMessage('deleteDirectoryConfirm') || 'Excluir diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio?', {
+      okLabel: getMessage('delete') || 'Excluir',
+      cancelLabel: getMessage('cancel') || 'Cancelar'
     });
     if (ok) {
       try {
         await model.deleteDirectory(dirName);
         await renderDirectories();
         await renderItems();
-        showToast(chrome.i18n.getMessage('deleteDirectory') || 'Excluir diretÃ³rio', 'success');
+        showToast(getMessage('deleteDirectory') || 'Excluir diretÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rio', 'success');
       } catch (err) {
         showToast(err.message || 'Erro', 'error');
       }
@@ -1110,16 +1116,16 @@ function showDirectoryContextMenu(dirName, x, y) {
 }
 
 //
-// Modal global para seleÃ§Ã£o do site para captura de print via atalho
+// Modal global para seleÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o do site para captura de print via atalho
 //
-// A funcionalidade de captura global foi removida. A funÃ§Ã£o showGlobalScreenshotModal nÃ£o Ã© utilizada.
+// A funcionalidade de captura global foi removida. A funÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o showGlobalScreenshotModal nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© utilizada.
 
 // ========================================================================
-// FunÃ§Ãµes adicionais para senha mestre, credenciais e capturas
+// FunÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes adicionais para senha mestre, credenciais e capturas
 // ========================================================================
 
 /**
- * Solicita a senha mestre ao usuÃ¡rio. Retorna string ou null.
+ * Solicita a senha mestre ao usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio. Retorna string ou null.
  * Utiliza um modal com campo de senha.
  * @param {string} title
  */
@@ -1135,16 +1141,16 @@ function showPasswordPrompt(title = 'Senha mestre') {
     modal.appendChild(heading);
     const input = document.createElement('input');
     input.type = 'password';
-    input.placeholder = chrome.i18n.getMessage('enterMasterPassword') || 'Senha mestre';
+    input.placeholder = getMessage('enterMasterPassword') || 'Senha mestre';
     modal.appendChild(input);
     const buttons = document.createElement('div');
     buttons.className = 'modal-buttons';
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'modal-btn cancel';
-    cancelBtn.textContent = chrome.i18n.getMessage('cancel') || 'Cancelar';
+    cancelBtn.textContent = getMessage('cancel') || 'Cancelar';
     const okBtn = document.createElement('button');
     okBtn.className = 'modal-btn ok';
-    okBtn.textContent = chrome.i18n.getMessage('confirm') || 'Confirmar';
+    okBtn.textContent = getMessage('confirm') || 'Confirmar';
     buttons.appendChild(cancelBtn);
     buttons.appendChild(okBtn);
     modal.appendChild(buttons);
@@ -1171,26 +1177,26 @@ function showPasswordPrompt(title = 'Senha mestre') {
 
 /**
  * Mostra modal para visualizar credenciais de um item. Requer senha mestre.
- * ApÃ³s validaÃ§Ã£o, exibe usuÃ¡rio e senha com opÃ§Ãµes copiar, editar e ocultar.
+ * ApÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³s validaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o, exibe usuÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡rio e senha com opÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes copiar, editar e ocultar.
  * @param {Object} item
  */
 async function showCredentialsView(item, existingPassword = null) {
-  const pwd = existingPassword || await showPasswordPrompt(chrome.i18n.getMessage('enterMasterPassword') || 'Digite a senha mestre');
+  const pwd = existingPassword || await showPasswordPrompt(getMessage('enterMasterPassword') || 'Digite a senha mestre');
   if (!pwd) return;
   try {
     const creds = await model.getCredentials(item.directory, item.id, pwd);
     if (!Array.isArray(creds) || creds.length === 0) {
-      showToast(chrome.i18n.getMessage('noCredentials') || 'Sem credenciais.', 'warning');
+      showToast(getMessage('noCredentials') || 'Sem credenciais.', 'warning');
       return;
     }
     showCredentialsViewModal(item, creds, pwd);
   } catch (err) {
-    showToast(err.message || (chrome.i18n.getMessage('invalidMasterPassword') || 'Senha incorreta. Tente novamente.'), 'error');
+    showToast(err.message || (getMessage('invalidMasterPassword') || 'Senha incorreta. Tente novamente.'), 'error');
   }
 }
 
 /**
- * Exibe modal com credenciais descriptografadas e opÃ§Ãµes de copiar/remover/adicionar/ocultar.
+ * Exibe modal com credenciais descriptografadas e opÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes de copiar/remover/adicionar/ocultar.
  * @param {Object} item
  * @param {Array<{id:string,label:string,user:string,pass:string,lastUpdated:number|null}>} creds
  * @param {string} masterPassword
@@ -1202,7 +1208,7 @@ function showCredentialsViewModal(item, creds, masterPassword) {
   const modal = document.createElement('div');
   modal.className = 'modal credentials-modal';
   const heading = document.createElement('h3');
-  heading.textContent = chrome.i18n.getMessage('credentials') || 'Credenciais';
+  heading.textContent = getMessage('credentials') || 'Credenciais';
   modal.appendChild(heading);
   const list = document.createElement('div');
   list.className = 'reminders-list';
@@ -1216,7 +1222,7 @@ function showCredentialsViewModal(item, creds, masterPassword) {
     const title = document.createElement('div');
     title.style.fontWeight = '700';
     title.style.marginBottom = '8px';
-    title.textContent = entry.label || 'Registro sem título';
+    title.textContent = entry.label || 'Registro sem tÃƒÆ’Ã‚Â­tulo';
     card.appendChild(title);
 
     const userRow = document.createElement('div');
@@ -1226,7 +1232,7 @@ function showCredentialsViewModal(item, creds, masterPassword) {
     userRow.style.alignItems = 'center';
     userRow.style.marginBottom = '8px';
     const userLabel = document.createElement('span');
-    userLabel.textContent = 'Usuário:';
+    userLabel.textContent = 'UsuÃƒÆ’Ã‚Â¡rio:';
     userLabel.style.fontWeight = '600';
     const userValue = document.createElement('span');
     userValue.className = 'blurred';
@@ -1239,7 +1245,7 @@ function showCredentialsViewModal(item, creds, masterPassword) {
     copyUserBtn.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(entry.user);
-        showToast(chrome.i18n.getMessage('copied') || 'Copiado para a área de transferência', 'success');
+        showToast(getMessage('copied') || 'Copiado para a ÃƒÆ’Ã‚Â¡rea de transferÃƒÆ’Ã‚Âªncia', 'success');
       } catch (_) {
         showToast('Erro ao copiar', 'error');
       }
@@ -1268,7 +1274,7 @@ function showCredentialsViewModal(item, creds, masterPassword) {
     copyPassBtn.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(entry.pass);
-        showToast(chrome.i18n.getMessage('copied') || 'Copiado para a área de transferência', 'success');
+        showToast(getMessage('copied') || 'Copiado para a ÃƒÆ’Ã‚Â¡rea de transferÃƒÆ’Ã‚Âªncia', 'success');
       } catch (_) {
         showToast('Erro ao copiar', 'error');
       }
@@ -1305,7 +1311,7 @@ function showCredentialsViewModal(item, creds, masterPassword) {
     list.appendChild(card);
   });
   modal.appendChild(list);
-  // BotÃµes
+  // BotÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes
   const buttons = document.createElement('div');
   buttons.className = 'modal-buttons';
   const addBtn = document.createElement('button');
@@ -1318,7 +1324,7 @@ function showCredentialsViewModal(item, creds, masterPassword) {
   });
   const hideBtn = document.createElement('button');
   hideBtn.className = 'modal-btn cancel';
-  hideBtn.textContent = chrome.i18n.getMessage('hide') || 'Ocultar';
+  hideBtn.textContent = getMessage('hide') || 'Ocultar';
   hideBtn.addEventListener('click', () => {
     cleanup();
   });
@@ -1350,7 +1356,7 @@ function showCredentialsViewModal(item, creds, masterPassword) {
  * Abre modal com galeria de capturas para um item, permitindo copiar e excluir.
  * @param {Object} item
  */
-// A funcionalidade de visualizaÃ§Ã£o de capturas em galeria foi removida.
+// A funcionalidade de visualizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o de capturas em galeria foi removida.
 
 
 

@@ -4,8 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Loki</title>
+    <link rel="stylesheet" href="../../../core/ui.css" />
     <style>
-      body { font-family: Arial, sans-serif; margin: 0; background: #121212; color: #f2f2f2; width: 360px; }
+      body { font-family: Arial, sans-serif; margin: 0; background: #121212; color: #f2f2f2; width: auto; }
       .container { padding: 12px; }
       h1 { font-size: 16px; margin: 0 0 10px; }
       h2 { font-size: 13px; margin: 12px 0 6px; color: #9ad3ff; }
@@ -39,9 +40,9 @@
   </head>
   <body>
     <div class="container">
-      <h1>Loki</h1>
+      <h1 data-i18n="automationTitle">Loki</h1>
 
-      <h2>Atualização automática</h2>
+      <h2 data-i18n="autoRefresh">Atualização automática</h2>
       <div class="row split">
         <input type="number" id="intervalValue" min="1" max="86400" value="30" />
         <select id="intervalUnit">
@@ -53,21 +54,21 @@
 
       <div class="row">
         <select id="scopeSelect" style="flex: 1">
-          <option value="current">Aba atual</option>
-          <option value="domain">Mesmo domínio</option>
-          <option value="selected">Múltiplas abas selecionadas</option>
-          <option value="all">Todas as abas</option>
+          <option value="current" data-i18n="currentTab">Aba atual</option>
+          <option value="domain" data-i18n="sameDomain">Mesmo domínio</option>
+          <option value="selected" data-i18n="selectedTabs">Múltiplas abas selecionadas</option>
+          <option value="all" data-i18n="allTabs">Todas as abas</option>
         </select>
       </div>
 
       <div id="selectedTabsContainer" class="tabs-list" style="display:none"></div>
 
       <div class="row split">
-        <button id="startBtn" class="primary">Iniciar</button>
-        <button id="stopAllBtn" class="danger">Parar todos</button>
+        <button id="startBtn" class="primary" data-i18n="start">Iniciar</button>
+        <button id="stopAllBtn" class="danger" data-i18n="stopAll">Parar todos</button>
       </div>
 
-      <h2>Opções avançadas</h2>
+      <h2 data-i18n="advancedOptions">Opções avançadas</h2>
 
       <div id="advancedPanel" class="advanced open">
         <div class="checkbox">
@@ -82,32 +83,33 @@
         </div>
         <div class="checkbox">
           <input type="checkbox" id="localStorage" checked />
-          <label for="localStorage">Armazenamento local</label>
+          <label for="localStorage" data-i18n="localStorageLabel">Armazenamento local</label>
           <span class="info-static" title="Remove dados persistentes armazenados localmente por sites.">?</span>
         </div>
         <div class="checkbox">
           <input type="checkbox" id="sessionStorage" checked />
-          <label for="sessionStorage">Armazenamento de sessão</label>
+          <label for="sessionStorage" data-i18n="sessionStorageLabel">Armazenamento de sessão</label>
           <span class="info-static" title="Remove dados temporários da aba atual, perdidos ao fechar a aba.">?</span>
         </div>
         <div class="row split">
-          <button id="clearTab">Limpar site atual</button>
-          <button id="clearDomain">Limpar domínio aberto</button>
+          <button id="clearTab" data-i18n="clearCurrentSite">Limpar site atual</button>
+          <button id="clearDomain" data-i18n="clearOpenDomain">Limpar domínio aberto</button>
         </div>
         <div class="row">
-          <button id="clearAll" class="danger" style="width:100%">Limpar tudo</button>
+          <button id="clearAll" class="danger" style="width:100%" data-i18n="clearAllText">Limpar tudo</button>
         </div>
       </div>
 
       <div id="status" class="status"></div>
 
       <div>
-        <h2>Status dos temporizadores</h2>
+        <h2 data-i18n="timerStatus">Status dos temporizadores</h2>
         <div id="jobs" class="jobs"></div>
       </div>
     </div>
-
-    <script src="automation-module.js"></script>
+    <script src="../../../core/i18n-dom-global.js"></script>
+    <script>window.addEventListener('DOMContentLoaded', () => window.websuiteApplyTranslations?.(document));</script>
+    <script type="module" src="automation-module.js"></script>
   </body>
 </html>
 

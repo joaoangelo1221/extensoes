@@ -1,4 +1,9 @@
-﻿const elements = {
+import { getLanguage, translate } from '../../../core/i18n.js';
+
+const language = await getLanguage();
+const t = (key, fallback = '') => translate(language, key) || fallback || key;
+
+const elements = {
   intervalValue: document.getElementById('intervalValue'),
   intervalUnit: document.getElementById('intervalUnit'),
   scopeSelect: document.getElementById('scopeSelect'),
@@ -18,18 +23,19 @@
 };
 
 let currentState = { jobs: [], tabs: [] };
+
 function getScopeLabel(scope) {
-  if (scope === 'current') return 'Aba atual';
-  if (scope === 'domain') return 'Mesmo domínio';
-  if (scope === 'selected') return 'Múltiplas abas selecionadas';
-  if (scope === 'all') return 'Todas as abas';
+  if (scope === 'current') return t('currentTab', 'Aba atual');
+  if (scope === 'domain') return t('sameDomain', 'Mesmo domínio');
+  if (scope === 'selected') return t('selectedTabs', 'Múltiplas abas selecionadas');
+  if (scope === 'all') return t('allTabs', 'Todas as abas');
   return scope;
 }
 
 function getJobStatusLabel(status) {
-  if (status === 'running') return 'em execução';
-  if (status === 'stopped') return 'parado';
-  if (status === 'paused') return 'pausado';
+  if (status === 'running') return t('automationStatusRunning', 'em execução');
+  if (status === 'stopped') return t('automationStatusStopped', 'parado');
+  if (status === 'paused') return t('automationStatusPaused', 'pausado');
   return status;
 }
 
@@ -48,7 +54,7 @@ function setStatus(message, error = false) {
 
 async function sendMessage(type, payload = {}) {
   const response = await chrome.runtime.sendMessage({ type, payload });
-  if (!response?.ok) throw new Error(response?.error || 'Erro desconhecido');
+  if (!response?.ok) throw new Error(response?.error || t('unknownError', 'Erro desconhecido'));
   return response.payload ?? response;
 }
 
@@ -68,7 +74,7 @@ function renderTabsSelection(tabs) {
     .filter((tab) => !!tab.id)
     .map(
       (tab) =>
-        `<label><input type="checkbox" value="${tab.id}" /> ${tab.title?.slice(0, 40) || 'Sem título'}</label>`
+        `<label><input type="checkbox" value="${tab.id}" /> ${tab.title?.slice(0, 40) || t('untitledTab', 'Sem título')}</label>`
     )
     .join('');
 }
@@ -92,28 +98,27 @@ function buildExplanation(scope) {
   const opts = getSelectedOptions();
   const selected = [];
 
-  if (opts.cache) selected.push('cache');
-  if (opts.cookies) selected.push('cookies');
-  if (opts.localStorage) selected.push('armazenamento local');
-  if (opts.sessionStorage) selected.push('dados de sessão');
+  if (opts.cache) selected.push(t('automationCacheLabel', 'cache'));
+  if (opts.cookies) selected.push(t('automationCookiesLabel', 'cookies'));
+  if (opts.localStorage) selected.push(t('localStorageLabel', 'armazenamento local'));
+  if (opts.sessionStorage) selected.push(t('sessionStorageLabel', 'armazenamento de sessão'));
 
   if (selected.length === 0) {
-    return 'Nenhuma opção selecionada.';
+    return t('automationNoOptionsSelected', 'Nenhuma opção selecionada.');
   }
 
-  return `Limpar ${selected.join(', ')} de ${scope}. Isso irá remover dados armazenados, podendo desconectar sessões e apagar preferências locais.`;
+  return `${t('automationCleanExplanationPrefix', 'Limpar')} ${selected.join(', ')} ${t('automationCleanExplanationSuffix', 'de')} ${scope}. ${t('automationCleanExplanationImpact', 'Isso irá remover dados armazenados, podendo desconectar sessões e apagar preferências locais.')}`;
 }
 
 function updateCleanTooltips() {
-  // NÃƒO ALTERAR TOOLTIP ESTÃTICO (info-static)
-  elements.clearTab.title = buildExplanation('o site atual');
-  elements.clearDomain.title = buildExplanation('o domínio nas abas abertas');
-  elements.clearAll.title = buildExplanation('todo o navegador');
+  elements.clearTab.title = buildExplanation(t('automationCurrentSiteScope', 'o site atual'));
+  elements.clearDomain.title = buildExplanation(t('automationDomainScope', 'o domínio nas abas abertas'));
+  elements.clearAll.title = buildExplanation(t('automationBrowserScope', 'todo o navegador'));
 }
 
 function renderJobs(jobs) {
   if (!jobs.length) {
-    elements.jobs.innerHTML = '<div class="muted">Nenhum temporizador ativo.</div>';
+    elements.jobs.innerHTML = `<div class="muted">${t('automationNoTimers', 'Nenhum temporizador ativo.')}</div>`;
     return;
   }
 
@@ -122,12 +127,12 @@ function renderJobs(jobs) {
       (job) => `
       <div class="job">
         <div><strong>${getScopeLabel(job.name)}</strong></div>
-        <div class="muted">Abas: ${job.tabIds.length} | Status: ${getJobStatusLabel(job.status)}</div>
-        <div>Próxima execução: ${job.secondsLeft !== null ? `${job.secondsLeft}s` : '-'}</div>
+        <div class="muted">${t('automationTabsLabel', 'Abas')}: ${job.tabIds.length} | ${t('automationStatusLabel', 'Status')}: ${getJobStatusLabel(job.status)}</div>
+        <div>${t('automationNextRun', 'Próxima execução')}: ${job.secondsLeft !== null ? `${job.secondsLeft}s` : '-'}</div>
         <div class="row" style="margin-top:6px">
-          <button class="small" data-action="restart" data-id="${job.id}">Iniciar</button>
-          <button class="small danger" data-action="stop" data-id="${job.id}">Parar</button>
-          <button class="small" data-action="remove" data-id="${job.id}">Remover</button>
+          <button class="small" data-action="restart" data-id="${job.id}">${t('start', 'Iniciar')}</button>
+          <button class="small danger" data-action="stop" data-id="${job.id}">${t('automationStop', 'Parar')}</button>
+          <button class="small" data-action="remove" data-id="${job.id}">${t('remove', 'Remover')}</button>
         </div>
       </div>`
     )
@@ -180,7 +185,7 @@ elements.startBtn.addEventListener('click', async () => {
   try {
     const intervalMs = toMs(elements.intervalValue.value, elements.intervalUnit.value);
     if (intervalMs < 1000 || intervalMs > 24 * 60 * 60 * 1000) {
-      throw new Error('Intervalo inválido. Use entre 1 segundo e 24 horas.');
+      throw new Error(t('automationInvalidInterval', 'Intervalo inválido. Use entre 1 segundo e 24 horas.'));
     }
 
     const scope = elements.scopeSelect.value;
@@ -188,12 +193,12 @@ elements.startBtn.addEventListener('click', async () => {
     const targetTabIds = await sendMessage('AUTOMATION/GET_SCOPE_TABS', { scope, selectedTabIds });
 
     if (!targetTabIds.length) {
-      throw new Error('Nenhuma aba encontrada para o escopo selecionado.');
+      throw new Error(t('automationNoTabsForScope', 'Nenhuma aba encontrada para o escopo selecionado.'));
     }
 
     await sendRefreshStartAction(scope, selectedTabIds, intervalMs);
 
-    setStatus('Atualização automática iniciada.');
+    setStatus(t('automationStarted', 'Atualização automática iniciada.'));
     await refreshState();
   } catch (error) {
     setStatus(error.message, true);
@@ -203,7 +208,7 @@ elements.startBtn.addEventListener('click', async () => {
 elements.stopAllBtn.addEventListener('click', async () => {
   try {
     await sendMessage('AUTOMATION/STOP_ALL');
-    setStatus('Todos os temporizadores foram pausados.');
+    setStatus(t('automationStoppedAll', 'Todos os temporizadores foram pausados.'));
     await refreshState();
   } catch (error) {
     setStatus(error.message, true);
@@ -211,14 +216,18 @@ elements.stopAllBtn.addEventListener('click', async () => {
 });
 
 async function runClean(scope) {
-  const scopeLabel = scope === 'current' ? 'o site atual' : scope === 'domain' ? 'o domínio nas abas abertas' : 'todo o navegador';
+  const scopeLabel = scope === 'current'
+    ? t('automationCurrentSiteScope', 'o site atual')
+    : scope === 'domain'
+      ? t('automationDomainScope', 'o domínio nas abas abertas')
+      : t('automationBrowserScope', 'todo o navegador');
   const msg = buildExplanation(scopeLabel);
-  if (!confirm(`${msg}\n\nDeseja continuar?`)) return;
+  if (!confirm(`${msg}\n\n${t('automationCleanConfirm', 'Deseja continuar?')}`)) return;
 
   try {
     const types = getSelectedOptions();
     await sendMessage('AUTOMATION/CLEAN', { scope, types });
-    setStatus(`Limpeza concluída no escopo: ${scopeLabel}.`);
+    setStatus(`${t('automationCleanDone', 'Limpeza concluída no escopo')}: ${scopeLabel}.`);
   } catch (error) {
     setStatus(error.message, true);
   }
@@ -241,5 +250,3 @@ chrome.runtime.onMessage.addListener((message) => {
 
 updateCleanTooltips();
 refreshState();
-
-

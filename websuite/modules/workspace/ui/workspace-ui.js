@@ -1,6 +1,11 @@
 // lib/ui.js
-// Utilitarios de interface para o popup: toasts, confirmacoes, prompts e modais
-// especializados (notas, destaques, lembretes, credenciais).
+// UtilitÃƒÂ¡rios de interface para o popup: toasts, confirmaÃƒÂ§ÃƒÂµes, prompts e modais
+// especializados (notas, destaques, lembretes e credenciais).
+
+import { getLanguage, translate } from '../../../core/i18n.js';
+
+const language = await getLanguage();
+const getMessage = (key, fallback = '') => translate(language, key) || fallback || key;
 
 export function showToast(message, type = 'success', duration = 3000) {
   const container = document.getElementById('toast-container');
@@ -35,10 +40,10 @@ export function showConfirm(message, opts = {}) {
     buttons.className = 'modal-buttons';
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'modal-btn cancel';
-    cancelBtn.textContent = opts.cancelLabel || chrome.i18n.getMessage('cancel') || 'Cancelar';
+    cancelBtn.textContent = opts.cancelLabel || getMessage('cancel') || 'Cancelar';
     const okBtn = document.createElement('button');
     okBtn.className = 'modal-btn ok';
-    okBtn.textContent = opts.okLabel || chrome.i18n.getMessage('confirm') || 'Confirmar';
+    okBtn.textContent = opts.okLabel || getMessage('confirm') || 'Confirmar';
     buttons.appendChild(cancelBtn);
     buttons.appendChild(okBtn);
     modal.appendChild(buttons);
@@ -72,10 +77,10 @@ export function showPrompt(label, initial = '') {
     buttons.className = 'modal-buttons';
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'modal-btn cancel';
-    cancelBtn.textContent = chrome.i18n.getMessage('cancel') || 'Cancelar';
+    cancelBtn.textContent = getMessage('cancel') || 'Cancelar';
     const okBtn = document.createElement('button');
     okBtn.className = 'modal-btn ok';
-    okBtn.textContent = chrome.i18n.getMessage('confirm') || 'Confirmar';
+    okBtn.textContent = getMessage('confirm') || 'Confirmar';
     buttons.appendChild(cancelBtn);
     buttons.appendChild(okBtn);
     modal.appendChild(buttons);
@@ -120,10 +125,10 @@ export function showTextModal(title, initial = '', maxLen = 120) {
     buttons.className = 'modal-buttons';
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'modal-btn cancel';
-    cancelBtn.textContent = chrome.i18n.getMessage('cancel') || 'Cancelar';
+    cancelBtn.textContent = getMessage('cancel') || 'Cancelar';
     const saveBtn = document.createElement('button');
     saveBtn.className = 'modal-btn ok';
-    saveBtn.textContent = chrome.i18n.getMessage('save') || 'Salvar';
+    saveBtn.textContent = getMessage('save') || 'Salvar';
     buttons.appendChild(cancelBtn);
     buttons.appendChild(saveBtn);
     modal.appendChild(buttons);
@@ -168,10 +173,10 @@ export function showReminderModal(title = 'Adicionar lembrete', initialDate = ''
     buttons.className = 'modal-buttons';
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'modal-btn cancel';
-    cancelBtn.textContent = chrome.i18n.getMessage('cancel') || 'Cancelar';
+    cancelBtn.textContent = getMessage('cancel') || 'Cancelar';
     const saveBtn = document.createElement('button');
     saveBtn.className = 'modal-btn ok';
-    saveBtn.textContent = chrome.i18n.getMessage('save') || 'Salvar';
+    saveBtn.textContent = getMessage('save') || 'Salvar';
     buttons.appendChild(cancelBtn);
     buttons.appendChild(saveBtn);
     modal.appendChild(buttons);
@@ -186,7 +191,7 @@ export function showReminderModal(title = 'Adicionar lembrete', initialDate = ''
       const date = dateInput.value;
       const note = noteInput.value.trim();
       if (!date) {
-        showToast('Informe uma data', 'warning');
+        showToast(getMessage('enterDate', 'Informe uma data'), 'warning');
         return;
       }
       cleanup({ date, note });
@@ -202,32 +207,32 @@ export function showCredentialsModal(hasMaster, initial = {}) {
     const modal = document.createElement('div');
     modal.className = 'modal note-modal';
     const heading = document.createElement('h3');
-    heading.textContent = 'Credenciais';
+    heading.textContent = getMessage('credentials', 'Credenciais');
     modal.appendChild(heading);
     const labelLabel = document.createElement('label');
-    labelLabel.textContent = 'Título do registro:';
+    labelLabel.textContent = getMessage('credentialsRecordTitle', 'TÃ­tulo do registro:');
     modal.appendChild(labelLabel);
     const labelInput = document.createElement('input');
     labelInput.type = 'text';
-    labelInput.placeholder = 'Ex.: Principal, Financeiro, Suporte';
+    labelInput.placeholder = getMessage('credentialsRecordTitlePlaceholder', 'Ex.: Principal, Financeiro, Suporte');
     labelInput.value = initial.label || '';
     modal.appendChild(labelInput);
     const userLabel = document.createElement('label');
-    userLabel.textContent = 'Usuário:';
+    userLabel.textContent = getMessage('credentialsUserLabel', 'UsuÃ¡rio:');
     modal.appendChild(userLabel);
     const userInput = document.createElement('input');
     userInput.type = 'text';
     userInput.value = initial.user || '';
     modal.appendChild(userInput);
     const passLabel = document.createElement('label');
-    passLabel.textContent = 'Senha:';
+    passLabel.textContent = getMessage('credentialsPasswordLabel', 'Senha:');
     modal.appendChild(passLabel);
     const passInput = document.createElement('input');
     passInput.type = 'password';
     passInput.value = initial.pass || '';
     modal.appendChild(passInput);
     const mpLabel = document.createElement('label');
-    mpLabel.textContent = hasMaster ? 'Senha mestre:' : 'Defina uma nova senha mestre:';
+    mpLabel.textContent = hasMaster ? getMessage('credentialsMasterPassword', 'Senha mestre:') : getMessage('credentialsSetMasterPassword', 'Defina uma nova senha mestre:');
     modal.appendChild(mpLabel);
     const mpInput = document.createElement('input');
     mpInput.type = 'password';
@@ -236,10 +241,10 @@ export function showCredentialsModal(hasMaster, initial = {}) {
     buttons.className = 'modal-buttons';
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'modal-btn cancel';
-    cancelBtn.textContent = chrome.i18n.getMessage('cancel') || 'Cancelar';
+    cancelBtn.textContent = getMessage('cancel') || 'Cancelar';
     const saveBtn = document.createElement('button');
     saveBtn.className = 'modal-btn ok';
-    saveBtn.textContent = chrome.i18n.getMessage('save') || 'Salvar';
+    saveBtn.textContent = getMessage('save') || 'Salvar';
     buttons.appendChild(cancelBtn);
     buttons.appendChild(saveBtn);
     modal.appendChild(buttons);

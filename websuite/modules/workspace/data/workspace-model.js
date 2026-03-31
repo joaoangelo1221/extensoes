@@ -1,15 +1,19 @@
-﻿// lib/model.js
-// Camada de modelo contendo as operaÃ§Ãµes de CRUD para diretÃ³rios e sites,
-// bem como funÃ§Ãµes de alto nÃ­vel para lidar com destaques, notas,
-// lembretes, credenciais. Depende de storage.js para persistÃªncia
+// lib/model.js
+// Camada de modelo contendo as operaÃƒÂ§ÃƒÂµes de CRUD para diretÃƒÂ³rios e sites,
+// bem como funÃƒÂ§ÃƒÂµes de alto nÃƒÂ­vel para lidar com destaques, notas,
+// lembretes, credenciais. Depende de storage.js para persistÃƒÂªncia
 // e crypto.js para criptografia de credenciais.
 
 import { getData, setData, updateData } from './storage.js';
 import { sha256, deriveKey, encrypt, decrypt } from './crypto.js';
+import { getLanguage, translate } from '../../../core/i18n.js';
+
+const language = await getLanguage();
+const getMessage = (key, fallback = '') => translate(language, key) || fallback || key;
 
 const DEFAULT_DIRECTORY_NAME = 'Diretorio 1';
 
-// Normaliza uma URL para deduplicaÃ§Ã£o (origem + pathname, sem query e hash)
+// Normaliza uma URL para deduplicaÃƒÂ§ÃƒÂ£o (origem + pathname, sem query e hash)
 function normalizedKey(url) {
   try {
     const u = new URL(url);
@@ -20,7 +24,7 @@ function normalizedKey(url) {
   }
 }
 
-// Gera um identificador Ãºnico simples
+// Gera um identificador ÃƒÂºnico simples
 function generateId() {
   return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
 }
@@ -45,8 +49,8 @@ function ensureCredentialEntries(item) {
 function getReservedDirectoryNames() {
   return [
     'Geral',
-    chrome.i18n.getMessage('moreAccessed') || 'Mais acessados',
-    chrome.i18n.getMessage('trash') || 'Lixeira'
+    getMessage('moreAccessed') || 'Mais acessados',
+    getMessage('trash') || 'Lixeira'
   ];
 }
 
@@ -75,9 +79,9 @@ function syncDirectoryOrder(data) {
 }
 
 /**
- * Retorna uma lista com os nomes dos diretÃ³rios existentes.
- * â€œMais acessadosâ€ NÃƒO entra aqui (Ã© especial e a UI o adiciona Ã  parte).
- * â€œGeralâ€ Ã© sempre o primeiro da lista retornada.
+ * Retorna uma lista com os nomes dos diretÃƒÂ³rios existentes.
+ * Ã¢â‚¬Å“Mais acessadosÃ¢â‚¬Â NÃƒÆ’O entra aqui (ÃƒÂ© especial e a UI o adiciona ÃƒÂ  parte).
+ * Ã¢â‚¬Å“GeralÃ¢â‚¬Â ÃƒÂ© sempre o primeiro da lista retornada.
  */
 export async function getDirectoryNames() {
   const data = await getData();
@@ -96,7 +100,7 @@ export async function getDirectoryNames() {
   return ['Geral', ...ordered];
 }
 
-/** ConfiguraÃ§Ãµes */
+/** ConfiguraÃƒÂ§ÃƒÂµes */
 export async function getSettings() {
   const data = await getData();
   data.settings = data.settings || {};
@@ -112,7 +116,7 @@ export async function setSettings(partial) {
   return data.settings;
 }
 
-/** DiretÃ³rios */
+/** DiretÃƒÂ³rios */
 async function ensureDirectory(name) {
   await updateData((data) => {
     if (!data.directories[name]) {
@@ -123,11 +127,11 @@ async function ensureDirectory(name) {
 }
 export async function createDirectory(name) {
   name = name.trim();
-  if (!name) throw new Error(chrome.i18n.getMessage('noDirectoryName') || 'Informe um nome para o diretÃ³rio.');
+  if (!name) throw new Error(getMessage('noDirectoryName') || 'Informe um nome para o diretÃƒÂ³rio.');
   const reserved = getReservedDirectoryNames();
-  if (reserved.includes(name)) throw new Error('Nome de diretÃ³rio reservado.');
+  if (reserved.includes(name)) throw new Error('Nome de diretÃƒÂ³rio reservado.');
   const data = await getData();
-  if (data.directories[name]) throw new Error(chrome.i18n.getMessage('directoryExists') || 'DiretÃ³rio jÃ¡ existe.');
+  if (data.directories[name]) throw new Error(getMessage('directoryExists') || 'DiretÃƒÂ³rio jÃƒÂ¡ existe.');
   data.directories[name] = [];
   syncDirectoryOrder(data);
   await setData(data);
@@ -135,13 +139,13 @@ export async function createDirectory(name) {
 }
 export async function renameDirectory(oldName, newName) {
   newName = newName.trim();
-  if (!newName) throw new Error(chrome.i18n.getMessage('noDirectoryName') || 'Informe um nome.');
+  if (!newName) throw new Error(getMessage('noDirectoryName') || 'Informe um nome.');
   const data = await getData();
-  if (oldName === 'Geral') throw new Error(chrome.i18n.getMessage('cannotRenameGeneral') || 'DiretÃ³rio Geral nÃ£o pode ser renomeado.');
-  const special = chrome.i18n.getMessage('moreAccessed') || 'Mais acessados';
-  if (oldName === special) throw new Error('DiretÃ³rio especial nÃ£o pode ser renomeado.');
-  if (getReservedDirectoryNames().includes(newName)) throw new Error('Nome de diretÃ³rio reservado.');
-  if (data.directories[newName]) throw new Error(chrome.i18n.getMessage('directoryExists') || 'JÃ¡ existe diretÃ³rio com esse nome.');
+  if (oldName === 'Geral') throw new Error(getMessage('cannotRenameGeneral') || 'DiretÃƒÂ³rio Geral nÃƒÂ£o pode ser renomeado.');
+  const special = getMessage('moreAccessed') || 'Mais acessados';
+  if (oldName === special) throw new Error('DiretÃƒÂ³rio especial nÃƒÂ£o pode ser renomeado.');
+  if (getReservedDirectoryNames().includes(newName)) throw new Error('Nome de diretÃƒÂ³rio reservado.');
+  if (data.directories[newName]) throw new Error(getMessage('directoryExists') || 'JÃƒÂ¡ existe diretÃƒÂ³rio com esse nome.');
   const list = data.directories[oldName];
   delete data.directories[oldName];
   data.directories[newName] = list;
@@ -159,9 +163,9 @@ export async function renameDirectory(oldName, newName) {
   return newName;
 }
 export async function deleteDirectory(name) {
-  if (name === 'Geral') throw new Error(chrome.i18n.getMessage('cannotDeleteGeneral') || 'Diretório Geral não pode ser excluído.');
-  const special = chrome.i18n.getMessage('moreAccessed') || 'Mais acessados';
-  if (name === special) throw new Error('Diretório especial não pode ser excluído.');
+  if (name === 'Geral') throw new Error(getMessage('cannotDeleteGeneral') || 'DiretÃ³rio Geral nÃ£o pode ser excluÃ­do.');
+  const special = getMessage('moreAccessed') || 'Mais acessados';
+  if (name === special) throw new Error('DiretÃ³rio especial nÃ£o pode ser excluÃ­do.');
   await updateData((data) => {
     const userDirectories = Object.keys(data.directories || {}).filter((dirName) => dirName !== 'Geral' && dirName !== name);
     const fallbackDirectory = userDirectories[0] || null;
@@ -192,7 +196,7 @@ export async function addSite(directory, site, forceAdd = false) {
   await updateData((data) => {
     directory = resolveWritableDirectoryName(data, directory);
     if (!directory) {
-      throw new Error('Crie um diretório antes de adicionar favoritos.');
+      throw new Error('Crie um diretÃ³rio antes de adicionar favoritos.');
     }
     data.directories[directory] = Array.isArray(data.directories[directory]) ? data.directories[directory] : [];
     syncDirectoryOrder(data);
@@ -398,7 +402,7 @@ export async function removeCredential(directory, itemId, credentialId) {
   });
 }
 
-/** Reordenar diretÃ³rios (arrastar guias) */
+/** Reordenar diretÃƒÂ³rios (arrastar guias) */
 export async function reorderDirectories(fromIndex, toIndex) {
   if (fromIndex === toIndex) return;
   await updateData((data) => {
@@ -417,7 +421,7 @@ export async function reorderDirectories(fromIndex, toIndex) {
   });
 }
 
-/** Renomear apenas o tÃ­tulo do site (nÃ£o altera URL) */
+/** Renomear apenas o tÃƒÂ­tulo do site (nÃƒÂ£o altera URL) */
 export async function renameSite(directory, itemId, newTitle) {
   await updateData((data) => {
     const list = data.directories[directory];
@@ -526,13 +530,13 @@ export async function getAllItems() {
   return items;
 }
 export async function importData(jsonData) {
-  if (!jsonData || typeof jsonData !== 'object') throw new Error('Dados invÃ¡lidos');
-  if (!jsonData.directories || !jsonData.settings) throw new Error('Estrutura invÃ¡lida');
+  if (!jsonData || typeof jsonData !== 'object') throw new Error('Dados invÃƒÂ¡lidos');
+  if (!jsonData.directories || !jsonData.settings) throw new Error('Estrutura invÃƒÂ¡lida');
   if (!jsonData.directories['Geral']) jsonData.directories['Geral'] = [];
   await setData(jsonData);
 }
 
-// Reexporta funÃ§Ãµes bÃ¡sicas de storage
+// Reexporta funÃƒÂ§ÃƒÂµes bÃƒÂ¡sicas de storage
 export { getData, setData, updateData } from './storage.js';
 
 
